@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const reader = @import("file_reader.zig");
 const renderer = @import("renderer.zig");
 
 const Link = struct {
@@ -38,23 +39,11 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    const file = try std.fs.cwd().openFile("src/main.zig", .{});
-    defer file.close();
+    var file_reader_1 = try reader.read_file("src/main.zig");
+    defer file_reader_1.deinit();
+    var file_reader_2 = try reader.read_file("src/file_reader.zig");
+    defer file_reader_2.deinit();
 
-    const stat = try file.stat();
-    const fsize = stat.size;
-
-    const addr = try std.posix.mmap(
-        null,
-        fsize,
-        std.posix.PROT.READ,
-        .{ .TYPE = .PRIVATE },
-        file.handle,
-        0,
-    );
-    defer std.posix.munmap(addr);
-
-    const data = @as([*]const u8, @ptrCast(addr))[0..fsize];
-
-    try renderer.render(.String, stdout, data);
+    try renderer.render(.String, stdout, file_reader_1.content);
+    try renderer.render(.String, stdout, file_reader_2.content);
 }
