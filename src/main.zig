@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const reader = @import("file_reader.zig");
-const renderer = @import("renderer.zig");
+const reader = @import("io/file_reader.zig");
+const renderer = @import("io/renderer.zig");
 
 const project_handler = @import("types/project.zig");
 
