@@ -26,7 +26,7 @@ const FileReader = struct {
     }
 };
 
-pub fn read_file(comptime file_path: []const u8) !FileReader {
+pub fn read_file(file_path: []const u8) !FileReader {
     var reader = FileReader{
         .file = try std.fs.cwd().openFile(
             file_path,

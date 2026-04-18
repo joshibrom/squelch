@@ -41,12 +41,23 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    var file_reader = try reader.read_file("content/projects/foo.html");
-    defer file_reader.deinit();
+    var projects_dir = try std.fs.cwd().openDir("content/projects", .{ .iterate = true });
+    defer projects_dir.close();
+    var projects_iter = projects_dir.iterate();
+    while (try projects_iter.next()) |entry| {
+        switch (entry.kind) {
+            .file => {
+                var fname_buf: [128]u8 = undefined;
+                var file_reader = try reader.read_file(try std.fmt.bufPrint(&fname_buf, "content/projects/{s}", .{entry.name}));
+                defer file_reader.deinit();
 
-    const project = project_handler.Project.parse(file_reader.content);
+                const project = project_handler.Project.parse(file_reader.content);
 
-    try renderer.render(.String, stdout, project.title);
-    try renderer.render(.String, stdout, project.description);
-    try renderer.render(.String, stdout, project.content);
+                try renderer.render(.String, stdout, project.title);
+                try renderer.render(.String, stdout, project.description);
+                try renderer.render(.String, stdout, project.content);
+            },
+            else => {},
+        }
+    }
 }
