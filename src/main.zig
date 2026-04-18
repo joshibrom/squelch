@@ -31,28 +31,6 @@ const my_profile = Profile{
     },
 };
 
-fn renderBolding(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var output = std.ArrayList(u8).empty;
-    errdefer output.deinit(allocator);
-
-    var i: usize = 0;
-    var inside_bold = false;
-
-    while (i < input.len) {
-        if (i + 1 < input.len and std.mem.eql(u8, input[i .. i + 2], "**")) {
-            const tag = if (inside_bold) "</strong>" else "<strong>";
-            try output.appendSlice(allocator, tag);
-            inside_bold = !inside_bold;
-            i += 2;
-        } else {
-            try output.append(allocator, input[i]);
-            i += 1;
-        }
-    }
-
-    return output.toOwnedSlice(allocator);
-}
-
 fn writeBolding(writer: *std.io.Writer, input: []const u8) !void {
     var i: usize = 0;
     var inside_bold = false;
@@ -71,11 +49,6 @@ fn writeBolding(writer: *std.io.Writer, input: []const u8) !void {
 }
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    const allocator = arena.allocator();
-    defer arena.deinit();
-    std.debug.print("{s}\n", .{try renderBolding(allocator, my_profile.tagline)});
-
     var stdout_buf: [1024]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
