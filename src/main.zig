@@ -3,6 +3,8 @@ const std = @import("std");
 const reader = @import("file_reader.zig");
 const renderer = @import("renderer.zig");
 
+const project_handler = @import("types/project.zig");
+
 const Link = struct {
     title: []const u8,
     href: []const u8,
@@ -39,11 +41,12 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    var file_reader_1 = try reader.read_file("src/main.zig");
-    defer file_reader_1.deinit();
-    var file_reader_2 = try reader.read_file("src/file_reader.zig");
-    defer file_reader_2.deinit();
+    var file_reader = try reader.read_file("content/projects/foo.html");
+    defer file_reader.deinit();
 
-    try renderer.render(.String, stdout, file_reader_1.content);
-    try renderer.render(.String, stdout, file_reader_2.content);
+    const project = project_handler.Project.parse(file_reader.content);
+
+    try renderer.render(.String, stdout, project.title);
+    try renderer.render(.String, stdout, project.description);
+    try renderer.render(.String, stdout, project.content);
 }
