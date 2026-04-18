@@ -38,5 +38,23 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    try renderer.render(.BoldableString, stdout, my_profile.tagline);
+    const file = try std.fs.cwd().openFile("src/main.zig", .{});
+    defer file.close();
+
+    const stat = try file.stat();
+    const fsize = stat.size;
+
+    const addr = try std.posix.mmap(
+        null,
+        fsize,
+        std.posix.PROT.READ,
+        .{ .TYPE = .PRIVATE },
+        file.handle,
+        0,
+    );
+    defer std.posix.munmap(addr);
+
+    const data = @as([*]const u8, @ptrCast(addr))[0..fsize];
+
+    try renderer.render(.String, stdout, data);
 }
