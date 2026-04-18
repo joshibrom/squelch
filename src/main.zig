@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const renderer = @import("renderer.zig");
+
 const Link = struct {
     title: []const u8,
     href: []const u8,
@@ -31,29 +33,10 @@ const my_profile = Profile{
     },
 };
 
-fn writeBolding(writer: *std.io.Writer, input: []const u8) !void {
-    var i: usize = 0;
-    var inside_bold = false;
-
-    while (i < input.len) {
-        if (i + 1 < input.len and std.mem.eql(u8, input[i .. i + 2], "**")) {
-            const tag = if (inside_bold) "</strong>" else "<strong>";
-            try writer.writeAll(tag);
-            inside_bold = !inside_bold;
-            i += 2;
-        } else {
-            try writer.writeByte(input[i]);
-            i += 1;
-        }
-    }
-}
-
 pub fn main() !void {
     var stdout_buf: [1024]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    try writeBolding(stdout, my_profile.tagline);
-    try stdout.writeAll("\n");
-    try stdout.flush();
+    try renderer.render(.BoldableString, stdout, my_profile.tagline);
 }
