@@ -1,5 +1,17 @@
 const std = @import("std");
 
+const FileReader = @import("file_reader.zig").FileReader;
+
+pub const PartialCollection = struct {
+    header: FileReader,
+    footer: FileReader,
+
+    pub fn deinit(self: *@This()) void {
+        self.header.deinit();
+        self.footer.deinit();
+    }
+};
+
 pub const RenderMode = enum {
     File,
     String,

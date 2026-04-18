@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const FileReader = struct {
+pub const FileReader = struct {
     file: std.fs.File,
     addr: []align(std.heap.page_size_min) u8 = undefined,
     content: []const u8 = undefined,

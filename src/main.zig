@@ -36,10 +36,20 @@ const my_profile = Profile{
     },
 };
 
+fn initPartials() !renderer.PartialCollection {
+    return .{
+        .header = try reader.read_file("content/partials/header.html"),
+        .footer = try reader.read_file("content/partials/footer.html"),
+    };
+}
+
 pub fn main() !void {
     var stdout_buf: [1024]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
+
+    var partials = try initPartials();
+    defer partials.deinit();
 
     var projects_dir = try std.fs.cwd().openDir("content/projects", .{ .iterate = true });
     defer projects_dir.close();
@@ -53,9 +63,9 @@ pub fn main() !void {
 
                 const project = project_handler.Project.parse(file_reader.content);
 
-                try renderer.render(.String, stdout, project.title);
-                try renderer.render(.String, stdout, project.description);
+                try renderer.render(.String, stdout, partials.header.content);
                 try renderer.render(.String, stdout, project.content);
+                try renderer.render(.String, stdout, partials.footer.content);
             },
             else => {},
         }
