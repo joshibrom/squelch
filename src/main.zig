@@ -63,9 +63,19 @@ pub fn main() !void {
 
                 const project = project_handler.Project.parse(file_reader.content);
 
-                try (renderer.RenderMode{ .text = .{ .content = partials.header.content } }).write(stdout);
-                try (renderer.RenderMode{ .text = .{ .content = project.content } }).write(stdout);
-                try (renderer.RenderMode{ .text = .{ .content = partials.footer.content } }).write(stdout);
+                const article_wrapper = renderer.RenderWrapper(renderer.RenderMode){
+                    .start = "<article>",
+                    .inner = .{ .text = .{ .content = project.content } },
+                    .end = "</article>",
+                };
+
+                const outer_wrapper = renderer.RenderWrapper(@TypeOf(article_wrapper)){
+                    .start = partials.header.content,
+                    .inner = article_wrapper,
+                    .end = partials.footer.content,
+                };
+
+                try outer_wrapper.write(stdout);
 
                 try stdout.flush();
             },

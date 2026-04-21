@@ -15,8 +15,8 @@ pub const PartialCollection = struct {
 pub fn RenderWrapper(comptime Inner: type) type {
     return struct {
         inner: Inner,
-        start: ?[]const u8,
-        end: ?[]const u8,
+        start: ?[]const u8 = null,
+        end: ?[]const u8 = null,
 
         pub fn write(self: @This(), writer: *std.Io.Writer) !void {
             if (self.start) |s| {
@@ -26,7 +26,7 @@ pub fn RenderWrapper(comptime Inner: type) type {
             try self.inner.write(writer);
 
             if (self.end) |e| {
-                try writer.write(e);
+                try writer.writeAll(e);
             }
         }
     };
