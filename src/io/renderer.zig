@@ -12,43 +12,65 @@ pub const PartialCollection = struct {
     }
 };
 
-pub const RenderMode = enum {
-    File,
-    String,
-    BoldableString,
+pub fn RenderWrapper(comptime Inner: type) type {
+    return struct {
+        inner: Inner,
+        start: ?[]const u8,
+        end: ?[]const u8,
 
-    fn write(comptime self: @This(), writer: *std.io.Writer, content: []const u8) !void {
-        try switch (self) {
-            .String => writeString(writer, content),
-            .BoldableString => writeBoldableString(writer, content),
-            else => @compileError("Unsupported rendering mode"),
-        };
-    }
+        pub fn write(self: @This(), writer: *std.Io.Writer) !void {
+            if (self.start) |s| {
+                try writer.writeAll(s);
+            }
 
-    fn writeString(writer: *std.io.Writer, content: []const u8) !void {
-        try writer.writeAll(content);
-    }
+            try self.inner.write(writer);
 
-    fn writeBoldableString(writer: *std.io.Writer, input: []const u8) !void {
+            if (self.end) |e| {
+                try writer.write(e);
+            }
+        }
+    };
+}
+
+pub const Boldable = struct {
+    content: []const u8,
+
+    pub fn write(self: @This(), writer: *std.Io.Writer) !void {
         var i: usize = 0;
         var inside_bold = false;
 
-        while (i < input.len) {
-            if (i + 1 < input.len and std.mem.eql(u8, input[i .. i + 2], "**")) {
+        while (i < self.content.len) {
+            if (i + 1 < self.content.len and std.mem.eql(u8, self.content[i .. i + 2], "**")) {
                 const tag = if (inside_bold) "</strong>" else "<strong>";
                 try writer.writeAll(tag);
                 inside_bold = !inside_bold;
                 i += 2;
             } else {
-                try writer.writeByte(input[i]);
+                try writer.writeByte(self.content[i]);
                 i += 1;
             }
         }
     }
 };
 
-pub fn render(comptime mode: RenderMode, writer: *std.io.Writer, content: []const u8) !void {
-    try mode.write(writer, content);
-    try writer.writeAll("\n");
-    try writer.flush();
-}
+pub const Text = struct {
+    content: []const u8,
+
+    pub fn write(self: @This(), writer: *std.Io.Writer) !void {
+        try writer.writeAll(self.content);
+    }
+};
+
+pub const RenderModeT = enum { boldable, text };
+
+pub const RenderMode = union(RenderModeT) {
+    boldable: Boldable,
+    text: Text,
+
+    pub fn write(self: @This(), writer: *std.Io.Writer) !void {
+        switch (self) {
+            .boldable => |s| try s.write(writer),
+            .text => |s| try s.write(writer),
+        }
+    }
+};

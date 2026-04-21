@@ -63,9 +63,11 @@ pub fn main() !void {
 
                 const project = project_handler.Project.parse(file_reader.content);
 
-                try renderer.render(.String, stdout, partials.header.content);
-                try renderer.render(.String, stdout, project.content);
-                try renderer.render(.String, stdout, partials.footer.content);
+                try (renderer.RenderMode{ .text = .{ .content = partials.header.content } }).write(stdout);
+                try (renderer.RenderMode{ .text = .{ .content = project.content } }).write(stdout);
+                try (renderer.RenderMode{ .text = .{ .content = partials.footer.content } }).write(stdout);
+
+                try stdout.flush();
             },
             else => {},
         }
