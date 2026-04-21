@@ -63,7 +63,7 @@ pub fn main() !void {
 
                 const project = project_handler.Project.parse(file_reader.content);
 
-                const article_wrapper = renderer.RenderWrapper(renderer.RenderMode){
+                const article_wrapper = renderer.RenderWrapper([]const u8, renderer.RenderMode, []const u8){
                     .start = "<article>",
                     .inner = .{ .text = .{ .content = project.content } },
                     .end = "</article>",

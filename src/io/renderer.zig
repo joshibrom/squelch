@@ -12,21 +12,27 @@ pub const PartialCollection = struct {
     }
 };
 
-pub fn RenderWrapper(comptime Inner: type) type {
+pub fn RenderWrapper(comptime Start: type, comptime Inner: type, comptime End: type) type {
     return struct {
+        start: ?Start = null,
         inner: Inner,
-        start: ?[]const u8 = null,
-        end: ?[]const u8 = null,
+        end: ?End = null,
 
         pub fn write(self: @This(), writer: *std.Io.Writer) !void {
             if (self.start) |s| {
-                try writer.writeAll(s);
+                switch (@TypeOf(s)) {
+                    []const u8, []u8 => try writer.writeAll(s),
+                    else => try s.write(writer),
+                }
             }
 
             try self.inner.write(writer);
 
             if (self.end) |e| {
-                try writer.writeAll(e);
+                switch (@TypeOf(e)) {
+                    []const u8, []u8 => try writer.writeAll(e),
+                    else => try e.write(writer),
+                }
             }
         }
     };
@@ -75,10 +81,10 @@ pub const RenderMode = union(RenderModeT) {
     }
 };
 
-pub fn Document(children: anytype) RenderWrapper(@TypeOf(children)) {
-    return RenderWrapper(@TypeOf(children)){
-        .start = "<!DOCTYPE html><html lang=\"en\">",
+pub fn Document(children: anytype) RenderWrapper(Text, @TypeOf(children), Text) {
+    return RenderWrapper(Text, @TypeOf(children), Text){
+        .start = .{ .content = "<!DOCTYPE html><html lang=\"en\">" },
         .inner = children,
-        .end = "</html>",
+        .end = .{ .content = "</html>" },
     };
 }
