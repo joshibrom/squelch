@@ -72,6 +72,18 @@ pub fn main() !void {
                 const doc = renderer.Document(article_wrapper);
                 try doc.write(stdout);
                 try stdout.flush();
+
+                const head = renderer.Head(
+                    project.title,
+                    project.description,
+                    renderer.Text{ .content = "" },
+                );
+                const d2 = renderer.Document(head);
+
+                try stdout.writeAll("\n\n");
+                try d2.write(stdout);
+                try stdout.writeAll("\n\n");
+                try stdout.flush();
             },
             else => {},
         }

@@ -82,9 +82,48 @@ pub const RenderMode = union(RenderModeT) {
 };
 
 pub fn Document(children: anytype) RenderWrapper(Text, @TypeOf(children), Text) {
-    return RenderWrapper(Text, @TypeOf(children), Text){
+    return .{
         .start = .{ .content = "<!DOCTYPE html><html lang=\"en\">" },
         .inner = children,
         .end = .{ .content = "</html>" },
+    };
+}
+
+pub fn Head(title: []const u8, description: []const u8, extra: anytype) RenderWrapper(
+    Text,
+    RenderWrapper(
+        RenderWrapper(Text, Text, Text),
+        RenderWrapper(Text, Text, Text),
+        @TypeOf(extra),
+    ),
+    Text,
+) {
+    const title_tag = TextTag(
+        "<title>",
+        title,
+        " | Joshua Ibrom</title>",
+    );
+    const description_tag = TextTag(
+        "<meta name=\"description\" content=\"",
+        description,
+        "\" />",
+    );
+    // FIXME: end cannot be null
+    return .{
+        .start = .{ .content = "<head>" },
+        .inner = .{
+            .start = description_tag,
+            .inner = title_tag,
+            .end = extra,
+        },
+        .end = .{ .content = "</head>" },
+    };
+}
+
+fn TextTag(tag_open: []const u8, title: []const u8, tag_close: []const u8) RenderWrapper(Text, Text, Text) {
+    return .{
+        .start = .{ .content = tag_open },
+        .inner = .{ .content = title },
+        .end = .{ .content = tag_close },
     };
 }
