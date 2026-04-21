@@ -1,6 +1,9 @@
 const std = @import("std");
 
-const renderer = @import("renderer.zig");
+const reader = @import("io/file_reader.zig");
+const renderer = @import("io/renderer.zig");
+
+const project_handler = @import("types/project.zig");
 
 const Link = struct {
     title: []const u8,
@@ -33,10 +36,50 @@ const my_profile = Profile{
     },
 };
 
+fn initPartials() !renderer.PartialCollection {
+    return .{
+        .header = try reader.read_file("content/partials/header.html"),
+        .footer = try reader.read_file("content/partials/footer.html"),
+    };
+}
+
 pub fn main() !void {
     var stdout_buf: [1024]u8 = undefined;
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
     const stdout = &stdout_writer.interface;
 
-    try renderer.render(.BoldableString, stdout, my_profile.tagline);
+    var partials = try initPartials();
+    defer partials.deinit();
+
+    var projects_dir = try std.fs.cwd().openDir("content/projects", .{ .iterate = true });
+    defer projects_dir.close();
+    var projects_iter = projects_dir.iterate();
+    while (try projects_iter.next()) |entry| {
+        switch (entry.kind) {
+            .file => {
+                var fname_buf: [128]u8 = undefined;
+                var file_reader = try reader.read_file(try std.fmt.bufPrint(&fname_buf, "content/projects/{s}", .{entry.name}));
+                defer file_reader.deinit();
+
+                const project = project_handler.Project.parse(file_reader.content);
+
+                const article_wrapper = renderer.RenderWrapper(renderer.RenderMode){
+                    .start = "<article>",
+                    .inner = .{ .text = .{ .content = project.content } },
+                    .end = "</article>",
+                };
+
+                const outer_wrapper = renderer.RenderWrapper(@TypeOf(article_wrapper)){
+                    .start = partials.header.content,
+                    .inner = article_wrapper,
+                    .end = partials.footer.content,
+                };
+
+                try outer_wrapper.write(stdout);
+
+                try stdout.flush();
+            },
+            else => {},
+        }
+    }
 }
