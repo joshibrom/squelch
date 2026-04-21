@@ -69,14 +69,8 @@ pub fn main() !void {
                     .end = "</article>",
                 };
 
-                const outer_wrapper = renderer.RenderWrapper(@TypeOf(article_wrapper)){
-                    .start = partials.header.content,
-                    .inner = article_wrapper,
-                    .end = partials.footer.content,
-                };
-
-                try outer_wrapper.write(stdout);
-
+                const doc = renderer.Document(article_wrapper);
+                try doc.write(stdout);
                 try stdout.flush();
             },
             else => {},

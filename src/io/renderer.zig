@@ -74,3 +74,11 @@ pub const RenderMode = union(RenderModeT) {
         }
     }
 };
+
+pub fn Document(children: anytype) RenderWrapper(@TypeOf(children)) {
+    return RenderWrapper(@TypeOf(children)){
+        .start = "<!DOCTYPE html><html lang=\"en\">",
+        .inner = children,
+        .end = "</html>",
+    };
+}
