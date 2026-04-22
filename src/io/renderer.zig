@@ -67,6 +67,27 @@ pub const Text = struct {
     }
 };
 
+pub const ImportCollectionType = enum { foo, bar, both };
+
+pub fn ImportCollection(comptime collection_type: ImportCollectionType) type {
+    return struct {
+        const IMPORT_FOO = "<script src=\"foo\"></script>";
+        const IMPORT_BAR = "<script src=\"bar\" defer></script>";
+
+        pub fn write(self: @This(), writer: *std.Io.Writer) !void {
+            _ = self;
+            const list = switch (collection_type) {
+                .foo => &[_][]const u8{IMPORT_FOO},
+                .bar => &[_][]const u8{IMPORT_BAR},
+                .both => &[_][]const u8{ IMPORT_FOO, IMPORT_BAR },
+            };
+            for (list) |import_str| {
+                try writer.writeAll(import_str);
+            }
+        }
+    };
+}
+
 pub const RenderModeT = enum { boldable, text };
 
 pub const RenderMode = union(RenderModeT) {

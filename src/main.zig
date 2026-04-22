@@ -69,15 +69,16 @@ pub fn main() !void {
                     .end = "</article>",
                 };
 
-                const doc = renderer.Document(article_wrapper);
+                const doc = renderer.Document(article_wrapper); // TODO: Document needs head & body
                 try doc.write(stdout);
                 try stdout.flush();
 
                 const head = renderer.Head(
                     project.title,
                     project.description,
-                    renderer.Text{ .content = "" },
+                    renderer.ImportCollection(.both){},
                 );
+
                 const d2 = renderer.Document(head);
 
                 try stdout.writeAll("\n\n");
