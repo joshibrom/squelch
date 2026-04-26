@@ -102,10 +102,19 @@ pub const RenderMode = union(RenderModeT) {
     }
 };
 
-pub fn Document(children: anytype) RenderWrapper(Text, @TypeOf(children), Text) {
+pub fn Document(head: anytype, body: anytype) RenderWrapper(
+    Text,
+    RenderWrapper(@TypeOf(head), Text, @TypeOf(body)),
+    Text,
+) {
+    const inner: RenderWrapper(@TypeOf(head), Text, @TypeOf(body)) = .{
+        .start = head,
+        .inner = .{ .content = "" },
+        .end = body,
+    };
     return .{
         .start = .{ .content = "<!DOCTYPE html><html lang=\"en\">" },
-        .inner = children,
+        .inner = inner,
         .end = .{ .content = "</html>" },
     };
 }
@@ -141,10 +150,27 @@ pub fn Head(title: []const u8, description: []const u8, extra: anytype) RenderWr
     };
 }
 
-fn TextTag(tag_open: []const u8, title: []const u8, tag_close: []const u8) RenderWrapper(Text, Text, Text) {
+pub fn Body(children: anytype, partials: *PartialCollection) RenderWrapper(
+    Text,
+    RenderWrapper(Text, @TypeOf(children), Text),
+    Text,
+) {
+    const inner: RenderWrapper(Text, @TypeOf(children), Text) = .{
+        .start = .{ .content = partials.header.content },
+        .inner = children,
+        .end = .{ .content = partials.footer.content },
+    };
+    return .{
+        .start = .{ .content = "<body>" },
+        .inner = inner,
+        .end = .{ .content = "</body>" },
+    };
+}
+
+fn TextTag(tag_open: []const u8, text: []const u8, tag_close: []const u8) RenderWrapper(Text, Text, Text) {
     return .{
         .start = .{ .content = tag_open },
-        .inner = .{ .content = title },
+        .inner = .{ .content = text },
         .end = .{ .content = tag_close },
     };
 }
