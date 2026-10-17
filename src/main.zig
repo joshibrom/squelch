@@ -3,38 +3,11 @@ const std = @import("std");
 const reader = @import("io/file_reader.zig");
 const renderer = @import("io/renderer.zig");
 
+const profile = @import("types/profile.zig");
+
+const hero = @import("io/partials/hero.zig");
+
 const project_handler = @import("types/project.zig");
-
-const Link = struct {
-    title: []const u8,
-    href: []const u8,
-};
-
-const Profile = struct {
-    const Callsign = struct {
-        service: []const u8,
-        callsign: []const u8,
-    };
-    name: []const u8,
-    title: []const u8,
-    tagline: []const u8,
-    links: []const Link,
-    callsigns: []const Callsign,
-};
-
-const my_profile = Profile{
-    .name = "Joshua Ibrom",
-    .title = "Web Application Developer III & MSCS Student",
-    .tagline = "I build minimalist web infrastructure and explore **systems-level programming**. Currently focused on high-performing tooling with **Zig** and **Rust**.",
-    .links = &[_]Link{
-        .{ .title = "GitHub", .href = "https://github.com/joshibrom" },
-        .{ .title = "LinkedIn", .href = "https://linkedin.com/in/joshua-ibrom" },
-        .{ .title = "Email", .href = "mailto:joshuaibrom@gmail.com" },
-    },
-    .callsigns = &[_]Profile.Callsign{
-        .{ .service = "GMRS", .callsign = "WSIZ578" },
-    },
-};
 
 fn initPartials() !renderer.PartialCollection {
     return .{
@@ -50,6 +23,11 @@ pub fn main() !void {
 
     var partials = try initPartials();
     defer partials.deinit();
+
+    const hero_elem = hero.hero(profile.my_profile);
+    try hero_elem.write(stdout);
+    try stdout.writeAll("\n\n");
+    try stdout.flush();
 
     var projects_dir = try std.fs.cwd().openDir("content/projects", .{ .iterate = true });
     defer projects_dir.close();

@@ -88,6 +88,17 @@ pub fn ImportCollection(comptime collection_type: ImportCollectionType) type {
     };
 }
 
+pub fn RenderedCollection(items: *const [][]const u8) type {
+    return struct {
+        pub fn write(self: @This(), writer: *std.Io.Writer) !void {
+            _ = self;
+            for (items) |str| {
+                try writer.writeAll(str);
+            }
+        }
+    };
+}
+
 pub const RenderModeT = enum { boldable, text };
 
 pub const RenderMode = union(RenderModeT) {
@@ -167,7 +178,7 @@ pub fn Body(children: anytype, partials: *PartialCollection) RenderWrapper(
     };
 }
 
-fn TextTag(tag_open: []const u8, text: []const u8, tag_close: []const u8) RenderWrapper(Text, Text, Text) {
+pub fn TextTag(tag_open: []const u8, text: []const u8, tag_close: []const u8) RenderWrapper(Text, Text, Text) {
     return .{
         .start = .{ .content = tag_open },
         .inner = .{ .content = text },
