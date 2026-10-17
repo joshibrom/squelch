@@ -1,85 +1,71 @@
 const std = @import("std");
+const Io = std.Io;
 
-const reader = @import("io/file_reader.zig");
-const renderer = @import("io/renderer.zig");
+const squelch_zig = @import("squelch_zig");
 
-const project_handler = @import("types/project.zig");
+pub fn main(init: std.process.Init) !void {
+    // Prints to stderr, unbuffered, ignoring potential errors.
+    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
-const Link = struct {
-    title: []const u8,
-    href: []const u8,
-};
+    // This is appropriate for anything that lives as long as the process.
+    const arena: std.mem.Allocator = init.arena.allocator();
 
-const Profile = struct {
-    const Callsign = struct {
-        service: []const u8,
-        callsign: []const u8,
-    };
-    name: []const u8,
-    title: []const u8,
-    tagline: []const u8,
-    links: []const Link,
-    callsigns: []const Callsign,
-};
+    // Accessing command line arguments:
+    const args = try init.minimal.args.toSlice(arena);
+    for (args) |arg| {
+        std.log.info("arg: {s}", .{arg});
+    }
 
-const my_profile = Profile{
-    .name = "Joshua Ibrom",
-    .title = "Web Application Developer III & MSCS Student",
-    .tagline = "I build minimalist web infrastructure and explore **systems-level programming**. Currently focused on high-performing tooling with **Zig** and **Rust**.",
-    .links = &[_]Link{
-        .{ .title = "GitHub", .href = "https://github.com/joshibrom" },
-        .{ .title = "LinkedIn", .href = "https://linkedin.com/in/joshua-ibrom" },
-        .{ .title = "Email", .href = "mailto:joshuaibrom@gmail.com" },
-    },
-    .callsigns = &[_]Profile.Callsign{
-        .{ .service = "GMRS", .callsign = "WSIZ578" },
-    },
-};
+    // In order to do I/O operations need an `Io` instance.
+    const io = init.io;
 
-fn initPartials() !renderer.PartialCollection {
-    return .{
-        .header = try reader.read_file("content/partials/header.html"),
-        .footer = try reader.read_file("content/partials/footer.html"),
-    };
+    // Stdout is for the actual output of your application, for example if you
+    // are implementing gzip, then only the compressed bytes should be sent to
+    // stdout, not any debugging messages.
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
+    const stdout_writer = &stdout_file_writer.interface;
+
+    try squelch_zig.printAnotherMessage(stdout_writer);
+
+    try stdout_writer.flush(); // Don't forget to flush!
 }
 
-pub fn main() !void {
-    var stdout_buf: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
-    const stdout = &stdout_writer.interface;
+test "simple test" {
+    const gpa = std.testing.allocator;
+    var list: std.ArrayList(i32) = .empty;
+    defer list.deinit(gpa); // Try commenting this out and see if zig detects the memory leak!
+    try list.append(gpa, 42);
+    try std.testing.expectEqual(@as(i32, 42), list.pop());
+}
 
-    var partials = try initPartials();
-    defer partials.deinit();
+test "fuzz example" {
+    try std.testing.fuzz({}, testOne, .{});
+}
 
-    var projects_dir = try std.fs.cwd().openDir("content/projects", .{ .iterate = true });
-    defer projects_dir.close();
-    var projects_iter = projects_dir.iterate();
-    while (try projects_iter.next()) |entry| {
-        switch (entry.kind) {
-            .file => {
-                var fname_buf: [128]u8 = undefined;
-                var file_reader = try reader.read_file(try std.fmt.bufPrint(&fname_buf, "content/projects/{s}", .{entry.name}));
-                defer file_reader.deinit();
+fn testOne(context: void, smith: *std.testing.Smith) !void {
+    _ = context;
+    // Try command `zig build test --fuzz -Doptimize=ReleaseFast` to see if it manages to fail this test case!
 
-                const project = project_handler.Project.parse(file_reader.content);
-
-                const article_wrapper = renderer.RenderWrapper(renderer.RenderMode){
-                    .start = "<article>",
-                    .inner = .{ .text = .{ .content = project.content } },
-                    .end = "</article>",
-                };
-
-                const outer_wrapper = renderer.RenderWrapper(@TypeOf(article_wrapper)){
-                    .start = partials.header.content,
-                    .inner = article_wrapper,
-                    .end = partials.footer.content,
-                };
-
-                try outer_wrapper.write(stdout);
-
-                try stdout.flush();
-            },
-            else => {},
-        }
-    }
+    const gpa = std.testing.allocator;
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(gpa);
+    while (!smith.eos()) switch (smith.value(enum { add_data, dup_data })) {
+        .add_data => {
+            const slice = try list.addManyAsSlice(gpa, smith.value(u4));
+            smith.bytes(slice);
+        },
+        .dup_data => {
+            if (list.items.len == 0) continue;
+            if (list.items.len > std.math.maxInt(u32)) return error.SkipZigTest;
+            const len = smith.valueRangeAtMost(u32, 1, @min(32, list.items.len));
+            const off = smith.valueRangeAtMost(u32, 0, @intCast(list.items.len - len));
+            try list.appendSlice(gpa, list.items[off..][0..len]);
+            try std.testing.expectEqualSlices(
+                u8,
+                list.items[off..][0..len],
+                list.items[list.items.len - len ..],
+            );
+        },
+    };
 }
