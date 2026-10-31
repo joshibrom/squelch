@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const MappedFile = struct {
+pub const MappedFile = struct {
     const Self = @This();
 
     io: std.Io,
