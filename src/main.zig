@@ -1,13 +1,21 @@
 const std = @import("std");
-const Directory = @import("fs/directory.zig").Directory;
+const Directory = @import("fs/directory.zig").DirectoryMapper;
 
 pub fn main(init: std.process.Init) !void {
-    var dir = Directory{ .io = init.io };
-    try dir.init("test_dir", std.Io.Dir.cwd());
+    var dir = Directory{
+        .io = init.io,
+        .dir = try std.Io.Dir.cwd().openDir(
+            init.io,
+            "test_dir",
+            .{ .iterate = true },
+        ),
+    };
+    try dir.init(init.gpa);
     defer dir.deinit();
 
-    while (try dir.next_file()) |nf| {
-        const fname, const mapped_file = nf;
+    while (try dir.map_next_file()) |next_file| {
+        const fname, var mapped_file = next_file;
+        defer mapped_file.deinit();
         std.debug.print("{s}\n{s}\n\n", .{ fname, mapped_file.content });
     }
 

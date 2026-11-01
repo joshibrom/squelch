@@ -3,63 +3,43 @@ const std = @import("std");
 const mapped_file = @import("mapped_file.zig");
 const MappedFile = mapped_file.MappedFile;
 
-pub const Directory = struct {
+pub const DirectoryMapper = struct {
     const Self = @This();
 
     io: std.Io,
-    dir: std.Io.Dir = undefined,
-    dir_iter: std.Io.Dir.Iterator = undefined,
-    current_child: ?*Self = null,
+    dir: std.Io.Dir,
+    walker: std.Io.Dir.Walker = undefined,
 
-    pub fn init(self: *Self, dirname: []const u8, parent_dir: std.Io.Dir) !void {
-        self.dir = try parent_dir.openDir(
-            self.io,
-            dirname,
-            .{ .iterate = true },
-        );
-        self.dir_iter = self.dir.iterate();
+    pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
+        self.walker = try self.dir.walk(allocator);
     }
 
     pub fn deinit(self: *Self) void {
-        self.dir_iter = undefined;
-        self.dir.close(self.io);
-        if (self.current_child) |child| {
-            child.deinit();
-        }
-        self.current_child = null;
+        self.walker.deinit();
+        self.walker = undefined;
     }
 
-    pub fn next_file(self: *Self) !?struct { []const u8, MappedFile } {
-        if (self.current_child) |child| {
-            return child.next_file();
-        }
+    pub fn map_next_file(self: *Self) !?struct { []const u8, MappedFile } {
+        const file = try self.next_file() orelse return null;
 
-        var entry = (try self.dir_iter.next(self.io)) orelse return null;
-        while (entry.kind != .directory and entry.kind != .file) {
-            entry = (try self.dir_iter.next(self.io)) orelse return null;
-        }
-
-        return switch (entry.kind) {
-            .directory => blk: {
-                self.current_child = @constCast(&Self{ .io = self.io });
-                try self.current_child.?.init(entry.name, self.dir);
-                break :blk self.current_child.?.next_file();
-            },
-            .file => blk: {
-                var mf = MappedFile{
-                    .io = self.io,
-                    .file = try self.dir.openFile(
-                        self.io,
-                        entry.name,
-                        .{ .mode = .read_write },
-                    ),
-                };
-                try mf.init();
-
-                break :blk .{ entry.name, mf };
-            },
-
-            else => unreachable,
+        var mf = MappedFile{
+            .io = self.io,
+            .file = try file.dir.openFile(
+                self.io,
+                file.basename,
+                .{ .mode = .read_write },
+            ),
         };
+        try mf.init();
+
+        return .{ file.path, mf };
+    }
+
+    fn next_file(self: *Self) !?std.Io.Dir.Walker.Entry {
+        while (try self.walker.next(self.io)) |entry| {
+            if (entry.kind == .file) return entry;
+        }
+
+        return null;
     }
 };
