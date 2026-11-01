@@ -7,32 +7,23 @@ pub const DirectoryMapper = struct {
     const Self = @This();
 
     io: std.Io,
-    dir: std.Io.Dir,
-    walker: std.Io.Dir.Walker = undefined,
+    walker: std.Io.Dir.Walker,
 
-    pub fn init(self: *Self, allocator: std.mem.Allocator) !void {
-        self.walker = try self.dir.walk(allocator);
+    pub fn init(io: std.Io, base_dir: std.Io.Dir, allocator: std.mem.Allocator) !Self {
+        return Self{
+            .io = io,
+            .walker = try base_dir.walk(allocator),
+        };
     }
 
     pub fn deinit(self: *Self) void {
         self.walker.deinit();
-        self.walker = undefined;
     }
 
     pub fn map_next_file(self: *Self) !?struct { []const u8, MappedFile } {
         const file = try self.next_file() orelse return null;
 
-        var mf = MappedFile{
-            .io = self.io,
-            .file = try file.dir.openFile(
-                self.io,
-                file.basename,
-                .{ .mode = .read_write },
-            ),
-        };
-        try mf.init();
-
-        return .{ file.path, mf };
+        return .{ file.path, try MappedFile.init(self.io, file.dir, file.basename) };
     }
 
     fn next_file(self: *Self) !?std.Io.Dir.Walker.Entry {
